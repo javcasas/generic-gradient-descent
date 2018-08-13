@@ -1,15 +1,19 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Lib
     ( someFunc
     ) where
 
+import Numeric.Natural
 import GHC.Generics
 someFunc :: IO ()
 someFunc = do
     sweep (Example (Parameter 0) 1 1 1)
     multiStepDescent 1 100 (Example (Parameter 48) 1 1 1)
+    print $ extractParameters $ from $ (Example (Parameter 48) 1 1 1)
 
 data Parameter a = Parameter a deriving (Show, Eq)
 unParameter (Parameter x) = x
@@ -19,7 +23,7 @@ data Example = Example {
     ea :: Double,
     eb :: Double,
     ec :: Double
-  } deriving (Show, Generic)
+  } deriving (Show, Eq, Generic)
 
 fx :: Example -> Double
 fx Example { ex, ea, eb, ec} = ea * x * x + eb * x + ec
@@ -51,3 +55,29 @@ multiStepDescent increment iters e = do
     where
         pr e = print $ ("x", (unParameter . ex) e, "y", fx e, "dy/dx", delta e)
         next = gradientDescent increment e
+
+class ExtractParameters a where
+  -- | Return number of constuctor fields for a value.
+  extractParameters :: a -> [Double]
+
+instance ExtractParameters (V1 p) where
+  extractParameters _ = []
+
+instance ExtractParameters (U1 p) where
+  extractParameters _ = []
+
+instance ExtractParameters (K1 i (Parameter Double) p) where
+  extractParameters (K1 (Parameter x)) = [x]
+
+instance ExtractParameters (K1 i Double p) where
+  extractParameters _ = []
+
+instance ExtractParameters (f p) => ExtractParameters (M1 i c f p) where
+  extractParameters (M1 x) = extractParameters x
+
+instance (ExtractParameters (a p), ExtractParameters (b p)) => ExtractParameters ((a :+: b) p) where
+  extractParameters (L1 x) = extractParameters x
+  extractParameters (R1 x) = extractParameters x
+
+instance (ExtractParameters (a p), ExtractParameters (b p)) => ExtractParameters ((a :*: b) p) where
+  extractParameters (a :*: b) = extractParameters a ++ extractParameters b
