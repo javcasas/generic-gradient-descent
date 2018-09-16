@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 import Test.Hspec hiding (Example)
 import Lib hiding (Example(..), fx)
@@ -14,7 +15,7 @@ data Example = Example {
     ea :: Double,
     eb :: Double,
     ec :: Double
-  } deriving (Show, Eq, Generic)
+  } deriving (Show, Eq, Generic, ExtractParameters)
 
 fx :: Example -> Double
 fx Example { ex, ea, eb, ec} = ea * x * x + eb * x + ec
@@ -51,10 +52,12 @@ main = hspec $ do
         it "Case 3" $ do
             getX (last $ take 20 $ descent 1 (Example (Parameter (-4.5)) 1 1 1)) `shouldSatisfy` (\x -> x< (-0.499999999) && x> (-0.50001))
     describe "ExtractParameters" $ do
+        it "extractParameters1" $ do
+            (extractParameters1 $ from $ (Example (Parameter (-4.5)) 1 1 1)) `shouldBe` [-4.5]
         it "extractParameters" $ do
-            (extractParameters $ from $ (Example (Parameter (-4.5)) 1 1 1)) `shouldBe` [-4.5]
+            (extractParameters (Example (Parameter (-4.5)) 1 1 1)) `shouldBe` [-4.5]
     describe "injectParameters" $ do
         it "injectParameters" $ do
             let (x, l) = injectParameters (from $ (Example (Parameter (-4.5)) 1 1 1)) [6]
-            (to x) `shouldBe` (Example (Parameter (7)) 1 1 1)
+            (to x) `shouldBe` (Example (Parameter (6)) 1 1 1)
             l `shouldBe` []

@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Lib where
 
 import Numeric.Natural
@@ -13,7 +14,7 @@ someFunc :: IO ()
 someFunc = do
     sweep (Example (Parameter 0) 1 1 1)
     multiStepDescent 1 100 (Example (Parameter 48) 1 1 1)
-    print $ extractParameters $ from $ (Example (Parameter 48) 1 1 1)
+    print $ extractParameters1 $ from $ (Example (Parameter 48) 1 1 1)
 
 newtype Parameter a = Parameter { unParameter :: a } deriving (Show, Eq, Num)
 
@@ -73,34 +74,34 @@ descent increment initial =
 class ExtractParameters a where
   -- | Return number of constuctor fields for a value.
   extractParameters :: a -> [Double]
-  default extractParameters :: (Generic a, ExtractParameters (Rep a)) => a -> [Double]
-  extractParameters x = extractParameters $ from x
+  default extractParameters :: (Generic a, ExtractParameters1 (Rep a)) => a -> [Double]
+  extractParameters x = extractParameters1 $ from x
 
 class ExtractParameters1 f where
   -- | Return number of constuctor fields for a value.
   extractParameters1 :: f p -> [Double]
 
-instance ExtractParameters (V1 p) where
-  extractParameters _ = []
+instance ExtractParameters1 V1 where
+  extractParameters1 _ = []
 
-instance ExtractParameters (U1 p) where
-  extractParameters _ = []
+instance ExtractParameters1 U1 where
+  extractParameters1 _ = []
 
-instance ExtractParameters (K1 i (Parameter Double) p) where
-  extractParameters (K1 (Parameter x)) = [x]
+instance ExtractParameters1 (K1 i (Parameter Double)) where
+  extractParameters1 (K1 (Parameter x)) = [x]
 
-instance ExtractParameters (K1 i Double p) where
-  extractParameters _ = []
+instance ExtractParameters1 (K1 i Double) where
+  extractParameters1 _ = []
 
-instance ExtractParameters (f p) => ExtractParameters (M1 i c f p) where
-  extractParameters (M1 x) = extractParameters x
+instance ExtractParameters1 f => ExtractParameters1 (M1 i c f) where
+  extractParameters1 (M1 x) = extractParameters1 x
 
-instance (ExtractParameters (a p), ExtractParameters (b p)) => ExtractParameters ((a :+: b) p) where
-  extractParameters (L1 x) = extractParameters x
-  extractParameters (R1 x) = extractParameters x
+instance (ExtractParameters1 a, ExtractParameters1 b) => ExtractParameters1 (a :+: b) where
+  extractParameters1 (L1 x) = extractParameters1 x
+  extractParameters1 (R1 x) = extractParameters1 x
 
-instance (ExtractParameters (a p), ExtractParameters (b p)) => ExtractParameters ((a :*: b) p) where
-  extractParameters (a :*: b) = extractParameters a ++ extractParameters b
+instance (ExtractParameters1 a, ExtractParameters1 b) => ExtractParameters1 (a :*: b) where
+  extractParameters1 (a :*: b) = extractParameters1 a ++ extractParameters1 b
 
 
 
