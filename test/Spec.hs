@@ -15,12 +15,7 @@ data Example = Example {
     ea :: Double,
     eb :: Double,
     ec :: Double
-  } deriving (Show, Eq, Generic, ExtractParameters)
-
-fx :: Example -> Double
-fx Example { ex, ea, eb, ec} = ea * x * x + eb * x + ec
-    where
-        x = unParameter ex
+  } deriving (Show, Eq, Generic, ExtractParameters, InjectParameters)
 
 getX :: Example -> Double
 getX x = unParameter $ ex x
@@ -31,7 +26,9 @@ instance GradientDescent Example where
     delta Example {ex, ea, eb, ec} = ea * 2 * x + eb
         where
             x = unParameter ex
-    f = fx
+    f Example { ex, ea, eb, ec} = ea * x * x + eb * x + ec
+        where
+            x = unParameter ex
     applyDelta step dx (Example { ex, ea, eb, ec }) = Example {ea, eb, ec, ex=tt }
         where
             tt = Parameter $ (unParameter ex) - (step * dx)
@@ -58,6 +55,4 @@ main = hspec $ do
             (extractParameters (Example (Parameter (-4.5)) 1 1 1)) `shouldBe` [-4.5]
     describe "injectParameters" $ do
         it "injectParameters" $ do
-            let (x, l) = injectParameters (from $ (Example (Parameter (-4.5)) 1 1 1)) [6]
-            (to x) `shouldBe` (Example (Parameter (6)) 1 1 1)
-            l `shouldBe` []
+            injectParameters (Example (Parameter (-4.5)) 1 1 1) [6] `shouldBe` (Example (Parameter (6)) 1 1 1)

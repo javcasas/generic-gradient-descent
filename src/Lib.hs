@@ -10,14 +10,16 @@ module Lib where
 
 import Numeric.Natural
 import GHC.Generics
+import Data.Proxy
 someFunc :: IO ()
-someFunc = do
-    sweep (Example (Parameter 0) 1 1 1)
-    multiStepDescent 1 100 (Example (Parameter 48) 1 1 1)
-    print $ extractParameters1 $ from $ (Example (Parameter 48) 1 1 1)
+someFunc = pure ()
+    --sweep (Example (Parameter 0) 1 1 1)
+    --multiStepDescent 1 100 (Example (Parameter 48) 1 1 1)
+    --print $ extractParameters1 $ from $ (Example (Parameter 48) 1 1 1)
 
 newtype Parameter a = Parameter { unParameter :: a } deriving (Show, Eq, Num)
 
+{-
 data Example = Example {
     ex :: Parameter Double,
     ea :: Double,
@@ -55,8 +57,7 @@ multiStepDescent increment iters e = do
     where
         pr e = print $ ("x", (unParameter . ex) e, "y", fx e, "dy/dx", delta2 e)
         next = gradientDescent increment e
-
-newtype Deltas a = Deltas a deriving (Show, Eq)
+-}
 class GradientDescent a where
     type DeltaRep a :: *
     
@@ -104,39 +105,44 @@ instance (ExtractParameters1 a, ExtractParameters1 b) => ExtractParameters1 (a :
   extractParameters1 (a :*: b) = extractParameters1 a ++ extractParameters1 b
 
 
-
 class InjectParameters a where
-  -- | Return number of constuctor fields for a value.
-  injectParameters :: a -> [Double] -> (a, [Double])
-
-instance InjectParameters (V1 p) where
-  injectParameters x p = (x, p)
-
-instance InjectParameters (U1 p) where
-  injectParameters x p = (x, p)
-
-instance InjectParameters (K1 i (Parameter Double) p) where
-  injectParameters (K1 (Parameter x)) (h:t) = (K1 (Parameter h), t)
-
-instance InjectParameters (K1 i Double p) where
-  injectParameters x p = (x, p)
-
-instance InjectParameters (f p) => InjectParameters (M1 i c f p) where
-  injectParameters (M1 x) p = (M1 x1, r)
+  injectParameters :: a -> [Double] -> a
+  default injectParameters :: (Generic a, InjectParameters1 (Rep a)) => a -> [Double] -> a
+  injectParameters x l = to r
     where
-        (x1, r) = injectParameters x p
+        (r, []) = injectParameters1 (from x) l
 
-instance (InjectParameters (a p), InjectParameters (b p)) => InjectParameters ((a :+: b) p) where
-  injectParameters (L1 x) p = (L1 x1, r)
-    where
-        (x1, r) = injectParameters x p
-  injectParameters (R1 x) p = (R1 x1, r)
-    where
-        (x1, r) = injectParameters x p
+class InjectParameters1 a where
+  injectParameters1 :: a b -> [Double] -> (a b, [Double])
 
-instance (InjectParameters (a p), InjectParameters (b p)) => InjectParameters ((a :*: b) p) where
-  injectParameters (a :*: b) p = 
-    let (a1, p1) = injectParameters a p in
-    let (b1, r) = injectParameters b p1 in
+instance InjectParameters1 V1 where
+  injectParameters1 x p = (x, p)
+
+instance InjectParameters1 U1 where
+  injectParameters1 x p = (x, p)
+
+instance InjectParameters1 (K1 i (Parameter Double)) where
+  injectParameters1 (K1 (Parameter x)) (h:t) = (K1 (Parameter h), t)
+
+instance InjectParameters1 (K1 i Double) where
+  injectParameters1 x p = (x, p)
+
+instance InjectParameters1 f => InjectParameters1 (M1 i c f) where
+  injectParameters1 (M1 x) p = (M1 x1, r)
+    where
+        (x1, r) = injectParameters1 x p
+
+instance (InjectParameters1 a, InjectParameters1 b) => InjectParameters1 (a :+: b) where
+  injectParameters1 (L1 x) p = (L1 x1, r)
+    where
+        (x1, r) = injectParameters1 x p
+  injectParameters1 (R1 x) p = (R1 x1, r)
+    where
+        (x1, r) = injectParameters1 x p
+
+instance (InjectParameters1 a, InjectParameters1 b) => InjectParameters1 (a :*: b) where
+  injectParameters1 (a :*: b) p = 
+    let (a1, p1) = injectParameters1 a p in
+    let (b1, r) = injectParameters1 b p1 in
     ((a1 :*: b1), r)
 
