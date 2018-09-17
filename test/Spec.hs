@@ -7,49 +7,46 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 import Test.Hspec hiding (Example)
---import Lib hiding (Example(..), fx)
 import Data.GradientDescent
 import GHC.Generics
 
-data Example = Example {
-    ex :: Parameter Double,
-    ea :: Double,
-    eb :: Double,
-    ec :: Double
+-- A general parabola following the formula
+-- f(x) = ax² + bx + c
+data Parabola = Parabola {
+    x :: Parameter Double,
+    a :: Double,
+    b :: Double,
+    c :: Double
   } deriving (Show, Eq, Generic, ExtractParameters, InjectParameters)
 
-getX :: Example -> Double
-getX x = unParameter $ ex x
+getParabolaX :: Parabola -> Double
+getParabolaX p = unParameter $ x p
 
 
-instance GradientDescent Example where
-    --type DeltaRep Example = Double
-    f Example { ex, ea, eb, ec} = ea * x * x + eb * x + ec
+instance GradientDescent Parabola where
+    f p@Parabola { a, b, c} = a * x * x + b * x + c
         where
-            x = unParameter ex
-    {-step l a = applyDelta l (delta a) a
-        where
-            delta Example {ex, ea, eb, ec} = ea * 2 * x + eb
-                where
-                    x = unParameter ex
-            applyDelta step dx (Example { ex, ea, eb, ec }) = Example {ea, eb, ec, ex=tt }
-                where
-                    tt = Parameter $ (unParameter ex) - (step * dx)
--}
+            x = getParabolaX p
+
+-- f(x, y) = ax² + bx + c + dx² + ex + f
+data BidimensionalParabola = BidimensionalParabola {
+        parabola1 :: Parabola
+    ,   parabola2 :: Parabola
+    } deriving (Show, Eq, Generic, ExtractParameters, InjectParameters)
 
 main :: IO ()
 main = hspec $ do
-    describe "Example" $ do
-        it "Case 2" $ do
-            f (Example (-0.5) 1 1 1) `shouldBe` 0.75
+    describe "Parabola" $ do
+        it "formula is correct" $ do
+            f (Parabola (-0.5) 1 1 1) `shouldBe` 0.75
             
-        it "Case 3" $ do
-            getX (last $ take 20 $ descent 1 (Example (-4.5) 1 1 1)) `shouldSatisfy` (\x -> x< (-0.499999999) && x> (-0.50001))
-    describe "ExtractParameters" $ do
-        it "extractParameters1" $ do
-            (extractParameters1 $ from $ (Example (-4.5) 1 1 1)) `shouldBe` [-4.5]
-        it "extractParameters" $ do
-            (extractParameters (Example (-4.5) 1 1 1)) `shouldBe` [-4.5]
-    describe "injectParameters" $ do
-        it "injectParameters" $ do
-            injectParameters (Example (-4.5) 1 1 1) [6] `shouldBe` (Example (Parameter (6)) 1 1 1)
+        it "descent is accurate after 20 iterations" $ do
+            getParabolaX (last $ take 20 $ descent 1 (Parabola (-4.5) 1 1 1)) `shouldSatisfy` (\x -> x< (-0.499999999) && x> (-0.50001))
+        describe "ExtractParameters" $ do
+            it "extractParameters1" $ do
+                (extractParameters1 $ from $ (Parabola (-4.5) 1 1 1)) `shouldBe` [-4.5]
+            it "extractParameters" $ do
+                (extractParameters (Parabola (-4.5) 1 1 1)) `shouldBe` [-4.5]
+        describe "injectParameters" $ do
+            it "injectParameters" $ do
+                injectParameters (Parabola (-4.5) 1 1 1) [6] `shouldBe` (Parabola (6) 1 1 1)

@@ -19,7 +19,7 @@ epsilon :: Double
 epsilon = 0.0000001
 
 genericStep :: (ExtractParameters a, InjectParameters a) => (a -> Double) -> Double -> a -> a
-genericStep f l a = injectParameters a modifiedParameters
+genericStep f scale a = injectParameters a modifiedParameters
     where
         parameters :: [Double]
         parameters = extractParameters a
@@ -34,7 +34,7 @@ genericStep f l a = injectParameters a modifiedParameters
         deltas :: [Double]
         deltas = calcDelta <$> indexes
         modifiedDeltas :: [Double]
-        modifiedDeltas = (* l) <$> deltas
+        modifiedDeltas = (* scale) <$> deltas
         modifiedParameters :: [Double]
         modifiedParameters = zipWith (-) parameters modifiedDeltas
         calcDelta :: Int -> Double
@@ -74,6 +74,9 @@ instance ExtractParameters1 (K1 i (Parameter Double)) where
 instance ExtractParameters1 (K1 i Double) where
   extractParameters1 _ = []
 
+instance (Generic c, ExtractParameters1 (Rep c)) => ExtractParameters1 (K1 i c) where
+  extractParameters1 (K1 x) = extractParameters1 $ from x
+
 instance ExtractParameters1 f => ExtractParameters1 (M1 i c f) where
   extractParameters1 (M1 x) = extractParameters1 x
 
@@ -101,11 +104,16 @@ instance InjectParameters1 V1 where
 instance InjectParameters1 U1 where
   injectParameters1 x p = (x, p)
 
-instance InjectParameters1 (K1 i (Parameter Double)) where
+instance {-# OVERLAPPING #-} InjectParameters1 (K1 i (Parameter Double)) where
   injectParameters1 (K1 (Parameter x)) (h:t) = (K1 (Parameter h), t)
 
-instance InjectParameters1 (K1 i Double) where
+instance {-# OVERLAPPING #-} InjectParameters1 (K1 i Double) where
   injectParameters1 x p = (x, p)
+
+instance {-# OVERLAPPABLE #-} InjectParameters1 (K1 i (Rep c a)) where
+  injectParameters1 (K1 x) l = (K1 $ to x1, r)
+    where
+        (x1, r) = injectParameters1 (from x) l
 
 instance InjectParameters1 f => InjectParameters1 (M1 i c f) where
   injectParameters1 (M1 x) p = (M1 x1, r)
