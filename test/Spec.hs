@@ -7,7 +7,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 import Test.Hspec hiding (Example)
-import Lib hiding (Example(..), fx)
+--import Lib hiding (Example(..), fx)
+import Data.GradientDescent
 import GHC.Generics
 
 data Example = Example {

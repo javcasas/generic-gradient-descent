@@ -13,11 +13,12 @@ module Data.GradientDescent.Generic where
 import Numeric.Natural
 import GHC.Generics
 import Data.Proxy
+import Data.GradientDescent.Parameter
 
 epsilon :: Double
 epsilon = 0.0000001
 
-genericStep (ExtractParameters a, InjectParameters a) => (a -> Double) -> Double -> a -> a
+genericStep :: (ExtractParameters a, InjectParameters a) => (a -> Double) -> Double -> a -> a
 genericStep f l a = injectParameters a modifiedParameters
     where
         parameters :: [Double]

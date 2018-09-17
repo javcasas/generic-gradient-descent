@@ -8,7 +8,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
-module Lib where
+module Data.GradientDescent.Parameter where
 
-someFunc :: IO ()
-someFunc = pure ()
+import Numeric.Natural
+import GHC.Generics
+import Data.Proxy
+
+newtype Parameter a = Parameter { unParameter :: a } deriving (Show, Eq, Num, Fractional)
