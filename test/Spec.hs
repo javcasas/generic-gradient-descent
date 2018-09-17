@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 import Test.Hspec hiding (Example)
 import Data.GradientDescent

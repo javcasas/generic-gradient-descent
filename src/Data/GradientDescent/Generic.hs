@@ -1,12 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Data.GradientDescent.Generic where
 
@@ -70,7 +64,7 @@ instance GExtractParameters V1 where
 instance GExtractParameters U1 where
   gExtractParameters _ = []
 
-instance {-# OVERLAPPABLE #-} (ExtractParameters a) => GExtractParameters (K1 i a) where
+instance (ExtractParameters a) => GExtractParameters (K1 i a) where
   gExtractParameters (K1 x) = extractParameters x
 
 instance ExtractParameters Parameter where
@@ -78,12 +72,6 @@ instance ExtractParameters Parameter where
 
 instance ExtractParameters Double where
   extractParameters _ = []
-
---instance GExtractParameters (K1 i Double) where
---  gExtractParameters _ = []
-
--- instance (Generic c, ExtractParameters1 (Rep c)) => ExtractParameters1 (K1 i c) where
---  extractParameters1 (K1 x) = extractParameters1 $ from x
 
 instance GExtractParameters f => GExtractParameters (M1 i c f) where
   gExtractParameters (M1 x) = gExtractParameters x
