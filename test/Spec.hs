@@ -18,11 +18,11 @@ data Parabola = Parabola {
 getParabolaX :: Parabola -> Double
 getParabolaX p = unParameter $ x p
 
-
 instance GradientDescent Parabola where
-    f p@Parabola { a, b, c} = a * x * x + b * x + c
+    f p@Parabola {a, b, c} = a * x * x + b * x + c
         where
             x = getParabolaX p
+
 
 -- A bidimensional parabola made from two parabolas
 -- f(x, y) = ax² + bx + c + dx² + ex + f
@@ -41,6 +41,7 @@ main :: IO ()
 main = hspec $ do
     let solvedParabola = Parabola (-0.5) 1 1 1
     let unsolvedParabola = Parabola (-4.5) 1 1 1
+    let unsolvedParabola2 = Parabola (-4.5) 1 (-2) 1
     describe "Parabola" $ do
         it "formula is correct" $
             f solvedParabola `shouldBe` 0.75
@@ -66,15 +67,15 @@ main = hspec $ do
                   `shouldBe`
                   (BidimensionalParabola (Parabola 1 1 1 1) (Parabola 2 1 1 1), [])
         it "descent is accurate after 20 iterations" $ do
-            let bidip = BidimensionalParabola unsolvedParabola unsolvedParabola
+            let bidip = BidimensionalParabola unsolvedParabola unsolvedParabola2
             getBidimensionalParabolaXY (last $ take 20 $ descent 1 bidip)
               `shouldSatisfy`
-              (\(x, y) -> x ~= (-0.5) && y ~= (-0.5))
+              (\(x, y) -> x ~= (-0.5) && y ~= 1)
 
 -- Floating point "Almost Equal" operation 
 (~=) :: Double -> Double -> Bool
 (~=) x y = (x + epsilon) > y && (x - epsilon) < y
   where
-    epsilon = 0.000001
+    epsilon = 0.0000001
 
 
