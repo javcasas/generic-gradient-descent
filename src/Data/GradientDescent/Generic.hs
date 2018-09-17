@@ -7,7 +7,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
+
 module Data.GradientDescent.Generic where
 
 import Numeric.Natural
@@ -19,7 +19,7 @@ epsilon :: Double
 epsilon = 0.0000001
 
 genericStep :: (ExtractParameters a, InjectParameters a) => (a -> Double) -> Double -> a -> a
-genericStep f scale a = injectParameters a modifiedParameters
+genericStep f scale a = fst $ injectParameters a modifiedParameters
     where
         parameters :: [Double]
         parameters = extractParameters a
@@ -28,7 +28,9 @@ genericStep f scale a = injectParameters a modifiedParameters
         base :: Double
         base = evaluateParameters parameters
         evaluateParameters :: [Double] -> Double
-        evaluateParameters p = f $ injectParameters a p
+        evaluateParameters p = f r
+          where
+            (r, []) = injectParameters a p
         microIncrement :: Double -> Double
         microIncrement x = abs $ epsilon * x
         deltas :: [Double]
@@ -56,80 +58,86 @@ genericStep f scale a = injectParameters a modifiedParameters
 
 class ExtractParameters a where
   extractParameters :: a -> [Double]
-  default extractParameters :: (Generic a, ExtractParameters1 (Rep a)) => a -> [Double]
-  extractParameters x = extractParameters1 $ from x
+  default extractParameters :: (Generic a, GExtractParameters (Rep a)) => a -> [Double]
+  extractParameters x = gExtractParameters $ from x
 
-class ExtractParameters1 f where
-  extractParameters1 :: f p -> [Double]
+class GExtractParameters f where
+  gExtractParameters :: f p -> [Double]
 
-instance ExtractParameters1 V1 where
-  extractParameters1 _ = []
+instance GExtractParameters V1 where
+  gExtractParameters _ = []
 
-instance ExtractParameters1 U1 where
-  extractParameters1 _ = []
+instance GExtractParameters U1 where
+  gExtractParameters _ = []
 
-instance ExtractParameters1 (K1 i (Parameter Double)) where
-  extractParameters1 (K1 (Parameter x)) = [x]
+instance {-# OVERLAPPABLE #-} (ExtractParameters a) => GExtractParameters (K1 i a) where
+  gExtractParameters (K1 x) = extractParameters x
 
-instance ExtractParameters1 (K1 i Double) where
-  extractParameters1 _ = []
+instance ExtractParameters Parameter where
+  extractParameters (Parameter x) = [x]
 
-instance (Generic c, ExtractParameters1 (Rep c)) => ExtractParameters1 (K1 i c) where
-  extractParameters1 (K1 x) = extractParameters1 $ from x
+instance ExtractParameters Double where
+  extractParameters _ = []
 
-instance ExtractParameters1 f => ExtractParameters1 (M1 i c f) where
-  extractParameters1 (M1 x) = extractParameters1 x
+--instance GExtractParameters (K1 i Double) where
+--  gExtractParameters _ = []
 
-instance (ExtractParameters1 a, ExtractParameters1 b) => ExtractParameters1 (a :+: b) where
-  extractParameters1 (L1 x) = extractParameters1 x
-  extractParameters1 (R1 x) = extractParameters1 x
+-- instance (Generic c, ExtractParameters1 (Rep c)) => ExtractParameters1 (K1 i c) where
+--  extractParameters1 (K1 x) = extractParameters1 $ from x
 
-instance (ExtractParameters1 a, ExtractParameters1 b) => ExtractParameters1 (a :*: b) where
-  extractParameters1 (a :*: b) = extractParameters1 a ++ extractParameters1 b
+instance GExtractParameters f => GExtractParameters (M1 i c f) where
+  gExtractParameters (M1 x) = gExtractParameters x
+
+instance (GExtractParameters a, GExtractParameters b) => GExtractParameters (a :+: b) where
+  gExtractParameters (L1 x) = gExtractParameters x
+  gExtractParameters (R1 x) = gExtractParameters x
+
+instance (GExtractParameters a, GExtractParameters b) => GExtractParameters (a :*: b) where
+  gExtractParameters (a :*: b) = gExtractParameters a ++ gExtractParameters b
 
 
 class InjectParameters a where
-  injectParameters :: a -> [Double] -> a
-  default injectParameters :: (Generic a, InjectParameters1 (Rep a)) => a -> [Double] -> a
-  injectParameters x l = to r
+  injectParameters :: a -> [Double] -> (a, [Double])
+  default injectParameters :: (Generic a, GInjectParameters (Rep a)) => a -> [Double] -> (a, [Double])
+  injectParameters x l = (to x1, r)
     where
-        (r, []) = injectParameters1 (from x) l
+      (x1, r) = gInjectParameters (from x) l
 
-class InjectParameters1 a where
-  injectParameters1 :: a b -> [Double] -> (a b, [Double])
+class GInjectParameters f where
+  gInjectParameters :: f a -> [Double] -> (f a, [Double])
 
-instance InjectParameters1 V1 where
-  injectParameters1 x p = (x, p)
+instance GInjectParameters V1 where
+  gInjectParameters x p = (x, p)
 
-instance InjectParameters1 U1 where
-  injectParameters1 x p = (x, p)
+instance GInjectParameters U1 where
+  gInjectParameters x p = (x, p)
 
-instance {-# OVERLAPPING #-} InjectParameters1 (K1 i (Parameter Double)) where
-  injectParameters1 (K1 (Parameter x)) (h:t) = (K1 (Parameter h), t)
+instance InjectParameters Parameter where
+  injectParameters (Parameter _) (h:t) = (Parameter h, t)
 
-instance {-# OVERLAPPING #-} InjectParameters1 (K1 i Double) where
-  injectParameters1 x p = (x, p)
+instance InjectParameters Double where
+  injectParameters x p = (x, p)
 
-instance {-# OVERLAPPABLE #-} InjectParameters1 (K1 i (Rep c a)) where
-  injectParameters1 (K1 x) l = (K1 $ to x1, r)
+instance (InjectParameters a) => GInjectParameters (K1 i a) where
+    gInjectParameters (K1 a) l = (K1 x1, r)
+      where
+          (x1, r) = injectParameters a l
+
+instance GInjectParameters f => GInjectParameters (M1 i c f) where
+  gInjectParameters (M1 x) p = (M1 x1, r)
     where
-        (x1, r) = injectParameters1 (from x) l
+        (x1, r) = gInjectParameters x p
 
-instance InjectParameters1 f => InjectParameters1 (M1 i c f) where
-  injectParameters1 (M1 x) p = (M1 x1, r)
+instance (GInjectParameters a, GInjectParameters b) => GInjectParameters (a :+: b) where
+  gInjectParameters (L1 x) p = (L1 x1, r)
     where
-        (x1, r) = injectParameters1 x p
+        (x1, r) = gInjectParameters x p
+  gInjectParameters (R1 x) p = (R1 x1, r)
+    where
+        (x1, r) = gInjectParameters x p
 
-instance (InjectParameters1 a, InjectParameters1 b) => InjectParameters1 (a :+: b) where
-  injectParameters1 (L1 x) p = (L1 x1, r)
-    where
-        (x1, r) = injectParameters1 x p
-  injectParameters1 (R1 x) p = (R1 x1, r)
-    where
-        (x1, r) = injectParameters1 x p
-
-instance (InjectParameters1 a, InjectParameters1 b) => InjectParameters1 (a :*: b) where
-  injectParameters1 (a :*: b) p = 
-    let (a1, p1) = injectParameters1 a p in
-    let (b1, r) = injectParameters1 b p1 in
+instance (GInjectParameters a, GInjectParameters b) => GInjectParameters (a :*: b) where
+  gInjectParameters (a :*: b) p = 
+    let (a1, p1) = gInjectParameters a p in
+    let (b1, r) = gInjectParameters b p1 in
     ((a1 :*: b1), r)

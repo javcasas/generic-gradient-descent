@@ -1,9 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
 import Test.Hspec hiding (Example)
@@ -13,7 +9,7 @@ import GHC.Generics
 -- A general parabola following the formula
 -- f(x) = ax² + bx + c
 data Parabola = Parabola {
-    x :: Parameter Double,
+    x :: Parameter,
     a :: Double,
     b :: Double,
     c :: Double
@@ -28,25 +24,57 @@ instance GradientDescent Parabola where
         where
             x = getParabolaX p
 
+-- A bidimensional parabola made from two parabolas
 -- f(x, y) = ax² + bx + c + dx² + ex + f
 data BidimensionalParabola = BidimensionalParabola {
         parabola1 :: Parabola
     ,   parabola2 :: Parabola
     } deriving (Show, Eq, Generic, ExtractParameters, InjectParameters)
 
+instance GradientDescent BidimensionalParabola where
+    f (BidimensionalParabola a b) = f a + f b
+
+getBidimensionalParabolaXY :: BidimensionalParabola -> (Double, Double)
+getBidimensionalParabolaXY (BidimensionalParabola a b) = (unParameter $ x a, unParameter $ x b)
+
 main :: IO ()
 main = hspec $ do
+    let solvedParabola = Parabola (-0.5) 1 1 1
+    let unsolvedParabola = Parabola (-4.5) 1 1 1
     describe "Parabola" $ do
-        it "formula is correct" $ do
-            f (Parabola (-0.5) 1 1 1) `shouldBe` 0.75
+        it "formula is correct" $
+            f solvedParabola `shouldBe` 0.75
             
-        it "descent is accurate after 20 iterations" $ do
-            getParabolaX (last $ take 20 $ descent 1 (Parabola (-4.5) 1 1 1)) `shouldSatisfy` (\x -> x< (-0.499999999) && x> (-0.50001))
+        it "descent is accurate after 20 iterations" $
+            getParabolaX (last $ take 20 $ descent 1 unsolvedParabola) `shouldSatisfy` (\x -> x ~= getParabolaX solvedParabola)
         describe "ExtractParameters" $ do
-            it "extractParameters1" $ do
-                (extractParameters1 $ from $ (Parabola (-4.5) 1 1 1)) `shouldBe` [-4.5]
-            it "extractParameters" $ do
-                (extractParameters (Parabola (-4.5) 1 1 1)) `shouldBe` [-4.5]
-        describe "injectParameters" $ do
-            it "injectParameters" $ do
-                injectParameters (Parabola (-4.5) 1 1 1) [6] `shouldBe` (Parabola (6) 1 1 1)
+            it "extractParameters1" $
+                gExtractParameters (from unsolvedParabola) `shouldBe` [-4.5]
+            it "extractParameters" $
+                extractParameters unsolvedParabola `shouldBe` [-4.5]
+        describe "injectParameters" $
+            it "injectParameters" $
+                injectParameters unsolvedParabola [6] `shouldBe` (Parabola 6 1 1 1, [])
+
+    describe "BidimensionalParabola" $ do
+        describe "ExtractParameters" $
+            it "extractParameters" $
+                extractParameters (BidimensionalParabola unsolvedParabola solvedParabola) `shouldBe` [-4.5, -0.5]
+        describe "injectParameters" $
+            it "injectParameters" $
+                injectParameters (BidimensionalParabola unsolvedParabola unsolvedParabola) [1, 2]
+                  `shouldBe`
+                  (BidimensionalParabola (Parabola 1 1 1 1) (Parabola 2 1 1 1), [])
+        it "descent is accurate after 20 iterations" $ do
+            let bidip = BidimensionalParabola unsolvedParabola unsolvedParabola
+            getBidimensionalParabolaXY (last $ take 20 $ descent 1 bidip)
+              `shouldSatisfy`
+              (\(x, y) -> x ~= (-0.5) && y ~= (-0.5))
+
+-- Floating point "Almost Equal" operation 
+(~=) :: Double -> Double -> Bool
+(~=) x y = (x + epsilon) > y && (x - epsilon) < y
+  where
+    epsilon = 0.000001
+
+
