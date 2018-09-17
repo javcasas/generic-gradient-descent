@@ -8,72 +8,57 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
-module Lib where
+module Data.GradientDescent.Generic where
 
 import Numeric.Natural
 import GHC.Generics
 import Data.Proxy
-someFunc :: IO ()
-someFunc = pure ()
-
-newtype Parameter a = Parameter { unParameter :: a } deriving (Show, Eq, Num, Fractional)
 
 epsilon :: Double
 epsilon = 0.0000001
 
-class GradientDescent a where
-    f :: a -> Double
+genericStep (ExtractParameters a, InjectParameters a) => (a -> Double) -> Double -> a -> a
+genericStep f l a = injectParameters a modifiedParameters
+    where
+        parameters :: [Double]
+        parameters = extractParameters a
+        indexes :: [Int]
+        indexes = [0..length parameters]
+        base :: Double
+        base = evaluateParameters parameters
+        evaluateParameters :: [Double] -> Double
+        evaluateParameters p = f $ injectParameters a p
+        microIncrement :: Double -> Double
+        microIncrement x = abs $ epsilon * x
+        deltas :: [Double]
+        deltas = calcDelta <$> indexes
+        modifiedDeltas :: [Double]
+        modifiedDeltas = (* l) <$> deltas
+        modifiedParameters :: [Double]
+        modifiedParameters = zipWith (-) parameters modifiedDeltas
+        calcDelta :: Int -> Double
+        calcDelta p = delta
+            where
+                parameter :: Double
+                parameter = parameters !! p
+                increment :: Double
+                increment = microIncrement parameter
+                modified :: [Double]
+                modified = replace p parameters (parameter + increment)
+                replace :: Int -> [a] -> a -> [a]
+                replace 0 (h:t) a = a:t
+                replace n (h:t) a = h : replace (n-1) t a
+                evaluated :: Double
+                evaluated = evaluateParameters modified
+                delta = (evaluated - base) / increment
 
-    step :: Double -> a -> a
-    default step :: (ExtractParameters a, InjectParameters a) => Double -> a -> a
-    step l a = injectParameters a modifiedParameters
-        where
-            parameters :: [Double]
-            parameters = extractParameters a
-            indexes :: [Int]
-            indexes = [0..length parameters]
-            base :: Double
-            base = evaluateParameters parameters
-            evaluateParameters :: [Double] -> Double
-            evaluateParameters p = f $ injectParameters a p
-            microIncrement :: Double -> Double
-            microIncrement x = abs $ epsilon * x
-            deltas :: [Double]
-            deltas = calcDelta <$> indexes
-            modifiedDeltas :: [Double]
-            modifiedDeltas = (* l) <$> deltas
-            modifiedParameters :: [Double]
-            modifiedParameters = zipWith (-) parameters modifiedDeltas
-            calcDelta :: Int -> Double
-            calcDelta p = delta
-                where
-                    parameter :: Double
-                    parameter = parameters !! p
-                    increment :: Double
-                    increment = microIncrement parameter
-                    modified :: [Double]
-                    modified = replace p parameters (parameter + increment)
-                    replace :: Int -> [a] -> a -> [a]
-                    replace 0 (h:t) a = a:t
-                    replace n (h:t) a = h : replace (n-1) t a
-                    evaluated :: Double
-                    evaluated = evaluateParameters modified
-                    delta = (evaluated - base) / increment
-
-descent :: (GradientDescent a) => Double -> a -> [a]
-descent increment initial = 
-    let d = step increment initial in
-    d : descent (increment * 0.95) d
-    
 
 class ExtractParameters a where
-  -- | Return number of constuctor fields for a value.
   extractParameters :: a -> [Double]
   default extractParameters :: (Generic a, ExtractParameters1 (Rep a)) => a -> [Double]
   extractParameters x = extractParameters1 $ from x
 
 class ExtractParameters1 f where
-  -- | Return number of constuctor fields for a value.
   extractParameters1 :: f p -> [Double]
 
 instance ExtractParameters1 V1 where

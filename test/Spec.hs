@@ -22,37 +22,33 @@ getX x = unParameter $ ex x
 
 
 instance GradientDescent Example where
-    type DeltaRep Example = Double
-    delta Example {ex, ea, eb, ec} = ea * 2 * x + eb
-        where
-            x = unParameter ex
+    --type DeltaRep Example = Double
     f Example { ex, ea, eb, ec} = ea * x * x + eb * x + ec
         where
             x = unParameter ex
-    applyDelta step dx (Example { ex, ea, eb, ec }) = Example {ea, eb, ec, ex=tt }
+    {-step l a = applyDelta l (delta a) a
         where
-            tt = Parameter $ (unParameter ex) - (step * dx)
-
+            delta Example {ex, ea, eb, ec} = ea * 2 * x + eb
+                where
+                    x = unParameter ex
+            applyDelta step dx (Example { ex, ea, eb, ec }) = Example {ea, eb, ec, ex=tt }
+                where
+                    tt = Parameter $ (unParameter ex) - (step * dx)
+-}
 
 main :: IO ()
 main = hspec $ do
-    describe "Blah" $ do
-        it "bleh" $ do 
-            -- someFunc
-            True `shouldBe` True
     describe "Example" $ do
-        it "Case 1" $ do
-            delta (Example (Parameter (-0.5)) 1 1 1) `shouldBe` 0
         it "Case 2" $ do
-            f (Example (Parameter (-0.5)) 1 1 1) `shouldBe` 0.75
+            f (Example (-0.5) 1 1 1) `shouldBe` 0.75
             
         it "Case 3" $ do
-            getX (last $ take 20 $ descent 1 (Example (Parameter (-4.5)) 1 1 1)) `shouldSatisfy` (\x -> x< (-0.499999999) && x> (-0.50001))
+            getX (last $ take 20 $ descent 1 (Example (-4.5) 1 1 1)) `shouldSatisfy` (\x -> x< (-0.499999999) && x> (-0.50001))
     describe "ExtractParameters" $ do
         it "extractParameters1" $ do
-            (extractParameters1 $ from $ (Example (Parameter (-4.5)) 1 1 1)) `shouldBe` [-4.5]
+            (extractParameters1 $ from $ (Example (-4.5) 1 1 1)) `shouldBe` [-4.5]
         it "extractParameters" $ do
-            (extractParameters (Example (Parameter (-4.5)) 1 1 1)) `shouldBe` [-4.5]
+            (extractParameters (Example (-4.5) 1 1 1)) `shouldBe` [-4.5]
     describe "injectParameters" $ do
         it "injectParameters" $ do
-            injectParameters (Example (Parameter (-4.5)) 1 1 1) [6] `shouldBe` (Example (Parameter (6)) 1 1 1)
+            injectParameters (Example (-4.5) 1 1 1) [6] `shouldBe` (Example (Parameter (6)) 1 1 1)
